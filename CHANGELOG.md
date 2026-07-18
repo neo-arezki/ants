@@ -1,21 +1,24 @@
 # CHANGELOG
 
-Toutes les évolutions importantes d'ANTs seront documentées ici.
+## v0.4.0 — 18 juillet 2026
 
----
+### Ajouts
+- Prévisions mensuelles et statut prévisionnel/confirmé.
+- Import des écritures habituelles dans un mois futur.
+- Date non connue affichée « À préciser ».
+- Liaison facultative entre une écriture et un projet.
+- Total des dépenses liées à chaque projet.
+- Commentaire facultatif sur une écriture.
 
-## v0.3.0 (en préparation)
+### Catégories
+- Loisirs : vie sociale, cinéma, théâtre, musée, festival/concert, musique, jeux vidéo, streaming.
+- Alimentation : courses, boulangerie, restaurant, fast-food.
+- Transport : ajout Taxi/VTC.
+- Achats : équipement, informatique, tabac, cadeaux, achats divers.
+- Études : université, livres, matériel, formation.
 
-### Ajout
-- Journal mensuel des écritures
-- Navigation entre les mois
-- Date automatique selon le mois affiché
-- Modification des écritures
-- Auto-complétion des libellés
-- Nouveau type "Mouvement"
-
-### Améliorations prévues
-- Couleurs des écritures
-- Icônes par catégorie
-- Sous-catégories
-- Tableau de bord enrichi
+### Interface
+- Retour du logo fourmi.
+- « Observations des fourmis ».
+- Remplacement de « Charges fixes » par « Écritures habituelles ».
+- Observations comparatives et prise en compte des projets.

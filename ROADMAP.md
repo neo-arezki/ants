@@ -1,74 +1,16 @@
 # ROADMAP ANTs
 
-## Vision
+## v0.4.x
+- [x] Prévisionnel mensuel
+- [x] Écritures habituelles importables
+- [x] Catégories affinées
+- [x] Écritures liées aux projets
+- [ ] Validation en un clic d'une prévision
+- [ ] Comparaison prévu / réel par libellé
+- [ ] Comptes courant / espèces / épargne
 
-ANTs est un assistant personnel de gestion financière.
-
-Il ne remplace pas une banque.
-Il aide à comprendre son comportement financier et préparer ses projets.
-
----
-
-# Priorité Haute
-
-- [ ] Journal mensuel
-- [ ] Auto-complétion des libellés
-- [ ] Mouvements (Retrait DAB, Livrets...)
-- [ ] Sauvegarde automatique
-
----
-
-# Ergonomie
-
-- [ ] Couleurs Revenus / Dépenses / Mouvements
-- [ ] Icônes par catégorie
-- [ ] Badges "Charge fixe" / "Ponctuelle"
-- [ ] Mode sombre
-- [ ] Raccourcis clavier
-
----
-
-# Comptes
-
-- [ ] Compte courant
-- [ ] Espèces
-- [ ] Livret A
-- [ ] LEP
-- [ ] Comptes personnalisés
-
----
-
-# Intelligence
-
-- [ ] Détection automatique des commerçants
-- [ ] Proposition automatique des catégories
-- [ ] Détection des dépenses récurrentes
+## v0.5
+- [ ] Graphiques d'évolution
 - [ ] Statistiques par commerçant
-
----
-
-# Tableau de bord
-
-- [ ] Répartition des dépenses
-- [ ] Évolution mensuelle
-- [ ] Charges fixes
-- [ ] Épargne
-- [ ] Prévisions
-
----
-
-# Coach financier
-
-- [ ] Conseils personnalisés
-- [ ] Alertes
-- [ ] Prévisions d'objectifs
-- [ ] Simulation de budget
-
----
-
-# Version 1.0
-
-- [ ] Interface finalisée
-- [ ] Installation Windows
-- [ ] Sauvegardes automatiques
-- [ ] Documentation utilisateur
+- [ ] Analyse des dépenses en espèces
+- [ ] Sauvegarde et restauration depuis l'interface

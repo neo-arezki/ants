@@ -1,25 +1,14 @@
-# Bases de données SQLite
 *.db
 *.db-journal
 *.sqlite
 *.sqlite3
-
-# Sauvegardes
 backups/
-
-# Python
 __pycache__/
 *.pyc
-
-# Construction
 build/
 dist/
 *.spec
-
-# Environnements virtuels
 .venv/
 venv/
-
-# Système
 .DS_Store
 Thumbs.db
