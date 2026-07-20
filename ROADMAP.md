@@ -1,16 +1,12 @@
-# ROADMAP ANTs
+# ROADMAP
 
-## v0.4.x
-- [x] Prévisionnel mensuel
-- [x] Écritures habituelles importables
-- [x] Catégories affinées
-- [x] Écritures liées aux projets
-- [ ] Validation en un clic d'une prévision
-- [ ] Comparaison prévu / réel par libellé
-- [ ] Comptes courant / espèces / épargne
+## Réalisé en v0.5.0
+- Dossiers de projet.
+- Description générale.
+- Séparation confirmé / prévisionnel.
+- Commentaires d'achats visibles dans le dossier.
 
-## v0.5
-- [ ] Graphiques d'évolution
-- [ ] Statistiques par commerçant
-- [ ] Analyse des dépenses en espèces
-- [ ] Sauvegarde et restauration depuis l'interface
+## Pistes ultérieures
+- Checklist de besoins avec coût estimé et réel.
+- Comptes courant, épargne et espèces.
+- Analyses historiques par projet et par commerçant.

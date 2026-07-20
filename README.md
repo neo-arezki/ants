@@ -1,4 +1,4 @@
-# ANTs v0.4.0
+# ANTs v0.5.0
 
 ANTs est un compagnon financier personnel local. Les données restent dans :
 
@@ -10,20 +10,27 @@ ANTs est un compagnon financier personnel local. Les données restent dans :
 2. Décompressez le dossier où vous voulez.
 3. Double-cliquez sur `lancer_ants.bat`.
 
-Au premier lancement, la base existante est sauvegardée dans `Documents\ANTs\backups`, puis migrée automatiquement vers la v0.4.0.
+Au premier lancement, la base existante est sauvegardée dans `Documents\ANTs\backups`, puis migrée automatiquement vers la v0.5.0.
 
 ## Nouveautés principales
 
-- taxonomie affinée : loisirs, alimentation, transport, achats et études ;
-- statut **Confirmée / Prévisionnelle** ;
-- import des écritures habituelles dans un mois futur ;
-- date pouvant rester « À préciser » ;
-- association facultative d'une écriture à un projet ;
-- dépenses liées visibles dans l'onglet Projets ;
-- observations mensuelles enrichies ;
-- retour du logo fourmi ;
-- libellé « Observations des fourmis » ;
-- « Charge fixe » remplacé par « Écriture habituelle / récurrente ».
+- les dépenses confirmées et prévisionnelles sont désormais séparées dans les projets ;
+- affichage distinct de **Dépensé**, **Prévu**, **Engagement total** et **Reste prévisionnel** ;
+- un projet peut recevoir une description générale et des notes ;
+- chaque projet dispose d'un dossier détaillé regroupant les achats associés ;
+- les commentaires saisis sur les écritures sont visibles dans ce dossier ;
+- un double-clic sur un projet ouvre désormais son dossier ;
+- les anciennes bases v0.4.0 sont migrées automatiquement sans perte de données.
+
+## Exemple
+
+Pour le projet « Études de droit » :
+
+- CVEC confirmée : 178 € ;
+- frais Assas prévisionnels : 500 € ;
+- dépensé réellement : 178 € ;
+- prévu : 500 € ;
+- engagement total : 678 €.
 
 ## Important
 

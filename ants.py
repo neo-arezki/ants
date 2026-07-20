@@ -9,7 +9,7 @@ from pathlib import Path
 import tkinter as tk
 from tkinter import messagebox, ttk
 
-APP_VERSION = "0.4.0"
+APP_VERSION = "0.5.0"
 APP_DIR = Path.home() / "Documents" / "ANTs"
 DB_PATH = APP_DIR / "ants.db"
 BACKUP_DIR = APP_DIR / "backups"
@@ -85,7 +85,7 @@ def backup_database(path: Path) -> None:
         return
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    target = BACKUP_DIR / f"ants_avant_v040_{stamp}.db"
+    target = BACKUP_DIR / f"ants_avant_v050_{stamp}.db"
     if not target.exists():
         shutil.copy2(path, target)
 
@@ -164,9 +164,13 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
             target_date TEXT NOT NULL,
             saved_amount REAL NOT NULL DEFAULT 0 CHECK(saved_amount >= 0),
             status TEXT NOT NULL DEFAULT 'En préparation',
+            description TEXT NOT NULL DEFAULT '',
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
         )
     """)
+    project_cols = table_columns(conn, "projects")
+    if "description" not in project_cols:
+        conn.execute("ALTER TABLE projects ADD COLUMN description TEXT NOT NULL DEFAULT ''")
     conn.execute("""
         CREATE TABLE IF NOT EXISTS savings_accounts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -362,12 +366,40 @@ class Database:
     def delete_saving(self, sid: int):
         self.conn.execute("DELETE FROM savings_accounts WHERE id=?", (sid,)); self.conn.commit()
 
-    def save_project(self, pid, name, target_amount, target_date, saved_amount, status):
+    def save_project(self, pid, name, target_amount, target_date, saved_amount, status, description):
         if pid:
-            self.conn.execute("UPDATE projects SET name=?,target_amount=?,target_date=?,saved_amount=?,status=? WHERE id=?", (name, target_amount, target_date, saved_amount, status, pid))
+            self.conn.execute(
+                "UPDATE projects SET name=?,target_amount=?,target_date=?,saved_amount=?,status=?,description=? WHERE id=?",
+                (name, target_amount, target_date, saved_amount, status, description, pid),
+            )
         else:
-            self.conn.execute("INSERT INTO projects(name,target_amount,target_date,saved_amount,status) VALUES(?,?,?,?,?)", (name, target_amount, target_date, saved_amount, status))
+            self.conn.execute(
+                "INSERT INTO projects(name,target_amount,target_date,saved_amount,status,description) VALUES(?,?,?,?,?,?)",
+                (name, target_amount, target_date, saved_amount, status, description),
+            )
         self.conn.commit()
+
+    def project_transactions(self, pid: int):
+        return self.conn.execute("""
+            SELECT t.id,t.transaction_date,t.amount,t.label,t.status,t.date_known,t.comment,
+                   c.parent_name AS parent,c.name AS category,c.icon
+            FROM transactions t
+            LEFT JOIN categories c ON c.id=t.category_id
+            WHERE t.project_id=? AND t.kind='expense'
+            ORDER BY CASE t.status WHEN 'confirmed' THEN 0 ELSE 1 END, t.transaction_date DESC, t.id DESC
+        """, (pid,)).fetchall()
+
+    def project_totals(self):
+        result = defaultdict(lambda: {"confirmed": 0.0, "planned": 0.0})
+        for row in self.conn.execute("""
+            SELECT project_id,status,SUM(amount) AS total
+            FROM transactions
+            WHERE project_id IS NOT NULL AND kind='expense'
+            GROUP BY project_id,status
+        """):
+            status = row["status"] if row["status"] in ("confirmed", "planned") else "confirmed"
+            result[row["project_id"]][status] = float(row["total"] or 0)
+        return result
 
     def delete_project(self, pid):
         self.conn.execute("UPDATE transactions SET project_id=NULL WHERE project_id=?", (pid,))
@@ -494,14 +526,23 @@ class ProjectDialog(tk.Toplevel):
             "saved": tk.StringVar(value=str(project["saved_amount"]).replace(".", ",") if project else "0"),
             "status": tk.StringVar(value=project["status"] if project else "En préparation"),
         }
-        f = ttk.Frame(self, padding=18); f.pack()
+        f = ttk.Frame(self, padding=18); f.pack(fill="both", expand=True)
         fields = (("Nom", "name"), ("Objectif (€)", "target"), ("Date cible", "date"), ("Déjà épargné (€)", "saved"), ("Statut", "status"))
         for i, (lab, key) in enumerate(fields):
             ttk.Label(f, text=lab).grid(row=i, column=0, sticky="w", pady=5, padx=(0, 12))
-            if key == "status": ttk.Combobox(f, textvariable=self.vars[key], values=("En préparation", "En cours", "En pause", "Réalisé"), state="readonly", width=32).grid(row=i, column=1, pady=5)
-            else: ttk.Entry(f, textvariable=self.vars[key], width=35).grid(row=i, column=1, pady=5)
-        ttk.Label(f, text="Date au format AAAA-MM-JJ").grid(row=5, column=1, sticky="w")
-        ttk.Button(f, text="Enregistrer", command=self.save).grid(row=6, column=1, sticky="e", pady=(12, 0))
+            if key == "status":
+                ttk.Combobox(f, textvariable=self.vars[key], values=("En préparation", "En cours", "En pause", "Réalisé"), state="readonly", width=42).grid(row=i, column=1, pady=5)
+            else:
+                ttk.Entry(f, textvariable=self.vars[key], width=45).grid(row=i, column=1, pady=5)
+        ttk.Label(f, text="Description / notes du projet").grid(row=5, column=0, sticky="nw", pady=5, padx=(0, 12))
+        self.description_text = tk.Text(f, width=48, height=7, wrap="word", font=("Segoe UI", 10))
+        self.description_text.grid(row=5, column=1, pady=5)
+        if project and project["description"]:
+            self.description_text.insert("1.0", project["description"])
+        ttk.Label(f, text="Date au format AAAA-MM-JJ").grid(row=6, column=1, sticky="w")
+        buttons = ttk.Frame(f); buttons.grid(row=7, column=1, sticky="e", pady=(12, 0))
+        ttk.Button(buttons, text="Annuler", command=self.destroy).pack(side="right", padx=(8, 0))
+        ttk.Button(buttons, text="Enregistrer", command=self.save).pack(side="right")
 
     def save(self):
         try:
@@ -511,8 +552,63 @@ class ProjectDialog(tk.Toplevel):
             messagebox.showerror("Erreur", "Vérifie les montants et la date.", parent=self); return
         if not self.vars["name"].get().strip():
             messagebox.showerror("Erreur", "Renseigne un nom de projet.", parent=self); return
-        self.db.save_project(self.project["id"] if self.project else None, self.vars["name"].get().strip(), target, self.vars["date"].get().strip(), saved, self.vars["status"].get())
+        self.db.save_project(
+            self.project["id"] if self.project else None,
+            self.vars["name"].get().strip(), target, self.vars["date"].get().strip(), saved,
+            self.vars["status"].get(), self.description_text.get("1.0", "end").strip(),
+        )
         self.destroy(); self.master.refresh_all()
+
+
+class ProjectDetailsDialog(tk.Toplevel):
+    def __init__(self, parent, db: Database, project):
+        super().__init__(parent); self.db, self.project = db, project
+        self.title(f"Dossier de projet — {project['name']}"); self.geometry("1040x650"); self.minsize(850, 520)
+        self.transient(parent)
+        outer = ttk.Frame(self, padding=16); outer.pack(fill="both", expand=True)
+        header = ttk.Frame(outer); header.pack(fill="x")
+        ttk.Label(header, text=f"📁  {project['name']}", font=("Segoe UI", 18, "bold")).pack(side="left")
+        ttk.Button(header, text="Modifier le projet", command=self.edit_project).pack(side="right")
+
+        totals = db.project_totals().get(project["id"], {"confirmed": 0.0, "planned": 0.0})
+        target = float(project["target_amount"]); saved = float(project["saved_amount"])
+        confirmed = totals["confirmed"]; planned = totals["planned"]
+        committed = confirmed + planned
+        remaining_actual = max(0.0, target - saved - confirmed)
+        remaining_planned = max(0.0, target - saved - committed)
+        cards = ttk.Frame(outer); cards.pack(fill="x", pady=(14, 12))
+        specs = (
+            ("Objectif", target), ("Déjà épargné", saved), ("Dépensé", confirmed),
+            ("Prévu", planned), ("Engagement total", committed), ("Reste prévisionnel", remaining_planned),
+        )
+        for i, (label, value) in enumerate(specs):
+            box = ttk.LabelFrame(cards, text=label, padding=8); box.grid(row=0, column=i, sticky="ew", padx=(0 if i == 0 else 5, 0)); cards.columnconfigure(i, weight=1)
+            ttk.Label(box, text=f"{value:.2f} €", font=("Segoe UI", 11, "bold")).pack()
+
+        desc = ttk.LabelFrame(outer, text="Description du projet", padding=10); desc.pack(fill="x", pady=(0, 12))
+        text = tk.Text(desc, height=5, wrap="word", relief="flat", background="#f7f8fa", font=("Segoe UI", 10))
+        text.pack(fill="x"); text.insert("1.0", project["description"] or "Aucune note pour le moment."); text.configure(state="disabled")
+
+        related = ttk.LabelFrame(outer, text="Achats et dépenses associés", padding=10); related.pack(fill="both", expand=True)
+        cols = ("date", "status", "label", "category", "amount", "comment")
+        tree = ttk.Treeview(related, columns=cols, show="headings")
+        heads = {"date":"Date", "status":"Statut", "label":"Libellé", "category":"Poste", "amount":"Montant", "comment":"Commentaire"}
+        widths = {"date":95, "status":105, "label":210, "category":210, "amount":100, "comment":260}
+        for c in cols:
+            tree.heading(c, text=heads[c]); tree.column(c, width=widths[c], anchor="e" if c == "amount" else "center" if c in ("date","status") else "w")
+        tree.pack(fill="both", expand=True)
+        tree.tag_configure("confirmed", foreground="#137333"); tree.tag_configure("planned", foreground="#8a5a00", background="#fff6d8")
+        for row in db.project_transactions(project["id"]):
+            tx_date = datetime.strptime(row["transaction_date"], "%Y-%m-%d").strftime("%d/%m/%Y") if row["date_known"] else "À préciser"
+            category = " › ".join(x for x in (row["parent"], row["category"]) if x)
+            tree.insert("", "end", iid=str(row["id"]), tags=(row["status"],), values=(
+                tx_date, STATUS_LABELS.get(row["status"], "Confirmée"), row["label"], category,
+                f"{float(row['amount']):.2f} €", row["comment"] or "—",
+            ))
+        ttk.Label(outer, text=f"Reste réel avant prévisions : {remaining_actual:.2f} €", foreground="#5f6b7a").pack(anchor="e", pady=(8, 0))
+
+    def edit_project(self):
+        self.destroy(); ProjectDialog(self.master, self.db, self.project)
 
 
 class ANTsApp(tk.Tk):
@@ -590,16 +686,26 @@ class ANTsApp(tk.Tk):
 
     def make_projects(self):
         top = ttk.Frame(self.projects_tab); top.pack(fill="x", pady=(0, 10))
-        ttk.Label(top, text="Projets futurs", font=("Segoe UI", 16, "bold")).pack(side="left")
+        ttk.Label(top, text="Dossiers de projet", font=("Segoe UI", 16, "bold")).pack(side="left")
         ttk.Button(top, text="＋ Nouveau projet", command=lambda: ProjectDialog(self, self.db)).pack(side="right")
-        cols = ("name", "target", "saved", "spent", "remaining", "date", "monthly", "status")
-        self.project_tree = ttk.Treeview(self.projects_tab, columns=cols, show="headings", selectmode="browse")
-        heads = {"name": "Projet", "target": "Objectif", "saved": "Déjà épargné", "spent": "Dépenses liées", "remaining": "Reste", "date": "Date cible", "monthly": "Effort mensuel", "status": "Statut"}
+        cols = ("name", "target", "saved", "confirmed", "planned", "committed", "remaining", "date", "monthly", "status")
+        tree_frame = ttk.Frame(self.projects_tab); tree_frame.pack(fill="both", expand=True)
+        self.project_tree = ttk.Treeview(tree_frame, columns=cols, show="headings", selectmode="browse")
+        heads = {
+            "name": "Projet", "target": "Objectif", "saved": "Épargné", "confirmed": "Dépensé",
+            "planned": "Prévu", "committed": "Engagement", "remaining": "Reste prévu",
+            "date": "Date cible", "monthly": "Effort mensuel", "status": "Statut",
+        }
+        widths = {"name": 155, "target": 95, "saved": 95, "confirmed": 95, "planned": 95, "committed": 105, "remaining": 105, "date": 105, "monthly": 110, "status": 105}
         for c in cols:
-            self.project_tree.heading(c, text=heads[c]); self.project_tree.column(c, width=145 if c == "name" else 115, anchor="e" if c in ("target", "saved", "spent", "remaining", "monthly") else "center")
-        self.project_tree.pack(fill="both", expand=True); self.project_tree.bind("<Double-1>", lambda _e: self.edit_project())
+            self.project_tree.heading(c, text=heads[c]); self.project_tree.column(c, width=widths[c], anchor="e" if c in ("target","saved","confirmed","planned","committed","remaining","monthly") else "center")
+        xbar = ttk.Scrollbar(tree_frame, orient="horizontal", command=self.project_tree.xview); self.project_tree.configure(xscrollcommand=xbar.set)
+        self.project_tree.pack(fill="both", expand=True); xbar.pack(fill="x")
+        self.project_tree.bind("<Double-1>", lambda _e: self.open_project())
         bar = ttk.Frame(self.projects_tab); bar.pack(fill="x", pady=(10, 0))
-        ttk.Button(bar, text="Supprimer", command=self.delete_project).pack(side="right"); ttk.Button(bar, text="Modifier", command=self.edit_project).pack(side="right", padx=8)
+        ttk.Button(bar, text="Supprimer", command=self.delete_project).pack(side="right")
+        ttk.Button(bar, text="Modifier", command=self.edit_project).pack(side="right", padx=8)
+        ttk.Button(bar, text="Ouvrir le dossier", command=self.open_project).pack(side="right")
 
     def make_savings(self):
         top = ttk.Frame(self.savings_tab); top.pack(fill="x", pady=(0, 10))
@@ -633,6 +739,9 @@ class ANTsApp(tk.Tk):
         s = self.project_tree.selection()
         if not s: return None
         pid = int(s[0]); return next((r for r in self.db.projects() if r["id"] == pid), None)
+    def open_project(self):
+        p = self.selected_project()
+        if p: ProjectDetailsDialog(self, self.db, p)
     def edit_project(self):
         p = self.selected_project()
         if p: ProjectDialog(self, self.db, p)
@@ -699,8 +808,9 @@ class ANTsApp(tk.Tk):
         active_projects = [p for p in self.db.projects() if p["status"] in ("En préparation", "En cours")]
         if active_projects:
             closest = min(active_projects, key=lambda p: p["target_date"])
-            remain = max(0.0, float(closest["target_amount"]) - float(closest["saved_amount"]))
-            obs.append(f"Projet le plus proche : {closest['name']} · encore {remain:.2f} € à constituer avant le {closest['target_date']}.")
+            pt = self.db.project_totals().get(closest["id"], {"confirmed": 0.0, "planned": 0.0})
+            remain = max(0.0, float(closest["target_amount"]) - float(closest["saved_amount"]) - pt["confirmed"] - pt["planned"])
+            obs.append(f"Projet le plus proche : {closest['name']} · reste prévisionnel {remain:.2f} € avant le {closest['target_date']}.")
         return obs
 
     def refresh_all(self):
@@ -731,16 +841,20 @@ class ANTsApp(tk.Tk):
         obs = self.observations(rows, totals, recurring_total, by_category)
         self.coach_text.configure(state="normal"); self.coach_text.delete("1.0", "end"); self.coach_text.insert("1.0", "\n\n".join(obs)); self.coach_text.configure(state="disabled")
 
-        project_spend = defaultdict(float)
-        for r in self.db.conn.execute("SELECT project_id,SUM(amount) total FROM transactions WHERE project_id IS NOT NULL AND kind='expense' GROUP BY project_id"):
-            project_spend[r["project_id"]] = float(r["total"] or 0)
+        project_totals = self.db.project_totals()
         self.project_tree.delete(*self.project_tree.get_children()); today = date.today()
         for p in self.db.projects():
-            target = float(p["target_amount"]); saved = float(p["saved_amount"]); spent = project_spend[p["id"]]; remaining = max(0.0, target - saved - spent)
+            target = float(p["target_amount"]); saved = float(p["saved_amount"])
+            confirmed = project_totals[p["id"]]["confirmed"]; planned = project_totals[p["id"]]["planned"]
+            committed = confirmed + planned; remaining = max(0.0, target - saved - committed)
             try:
                 td = datetime.strptime(p["target_date"], "%Y-%m-%d").date(); months = max(1, (td.year - today.year) * 12 + td.month - today.month); monthly = remaining / months
             except ValueError: monthly = 0
-            self.project_tree.insert("", "end", iid=str(p["id"]), values=(p["name"], f"{target:.2f} €", f"{saved:.2f} €", f"{spent:.2f} €", f"{remaining:.2f} €", p["target_date"], f"{monthly:.2f} €", p["status"]))
+            self.project_tree.insert("", "end", iid=str(p["id"]), values=(
+                p["name"], f"{target:.2f} €", f"{saved:.2f} €", f"{confirmed:.2f} €",
+                f"{planned:.2f} €", f"{committed:.2f} €", f"{remaining:.2f} €",
+                p["target_date"], f"{monthly:.2f} €", p["status"],
+            ))
         self.savings_tree.delete(*self.savings_tree.get_children())
         for s in self.db.savings(): self.savings_tree.insert("", "end", iid=str(s["id"]), values=(s["name"], f"{float(s['balance']):.2f} €", str(s["updated_at"])[:10]))
 

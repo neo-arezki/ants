@@ -1,5 +1,24 @@
 # CHANGELOG
 
+## v0.5.0 — 18 juillet 2026
+
+### Dossiers de projet
+- Ajout d'une description générale pour chaque projet.
+- Ajout d'un dossier détaillé accessible par double-clic.
+- Affichage des achats associés, de leur statut et de leur commentaire.
+
+### Calculs corrigés
+- Séparation des dépenses confirmées et prévisionnelles.
+- Ajout des colonnes Dépensé, Prévu, Engagement et Reste prévu.
+- Les prévisions ne sont plus présentées comme des dépenses déjà réalisées.
+- L'effort mensuel est calculé sur le reste prévisionnel.
+
+### Données
+- Migration automatique depuis la v0.4.0.
+- Ajout non destructif du champ description dans la table projects.
+
+# CHANGELOG
+
 ## v0.4.0 — 18 juillet 2026
 
 ### Ajouts
